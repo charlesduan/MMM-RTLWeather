@@ -13,6 +13,7 @@ Module.register("MMM-RTLWeather", {
         var self = this;
         Log.info("Starting module: " + this.name);
         this.weatherData = null;
+        this.errorData = null;
 
         this.sendSocketNotification("RTL_START");
 
@@ -23,7 +24,12 @@ Module.register("MMM-RTLWeather", {
     socketNotificationReceived: function(notification, payload) {
         switch (notification) {
         case "RTL_WEATHER_UPDATE":
-            this.weatherData = payload;
+            if (payload.error) {
+                this.errorData = payload;
+            } else {
+                this.weatherData = payload;
+                this.errorData = null;
+            }
             this.sendWeatherNotifications();
             this.updateDom();
             break;
@@ -57,6 +63,9 @@ Module.register("MMM-RTLWeather", {
         if (delay < 60) { return Math.round(delay) + " minutes ago"; }
         delay /= 60;
         if (delay < 1.5) { return "1 hour ago"; }
+        return null;
+
+        // Anything beyond this is too much
         if (delay < 24) { return Math.round(delay) + " hours ago"; }
         delay /= 24;
         if (delay < 1.5) { return "1 day ago"; }
@@ -116,45 +125,44 @@ Module.register("MMM-RTLWeather", {
 
     getDom: function() {
         var wrapper = document.createElement("div");
-        if (this.weatherData) {
-            if (this.weatherData.error) {
-                wrapper.innerHTML = "Error: " + this.weatherData.error;
-            } else {
-                this.getDomForData(wrapper);
-            }
-        } else {
-            wrapper.innerHTML = "Data not loaded yet";
-        }
-        return wrapper;
-    },
-
-    getDomForData: function(wrapper) {
-        var tempInfo = document.createElement("div");
-        tempInfo.className = "large light";
-        var temperature = document.createElement("span");
-        temperature.className = "bright";
-        temperature.innerHTML = " " + this.getTemperature() + "&deg;";
-        tempInfo.appendChild(temperature);
-        wrapper.appendChild(tempInfo);
-
-        var dewpoint = this.getDewpoint();
-        if (dewpoint) {
-            tempInfo = document.createElement("div");
-            tempInfo.className = "normal medium";
-            tempInfo.innerHTML = "Dew point " + dewpoint + "&deg;" +
-                " <span class=\"fa fa-fw " +
-                this.getDewpointStyle(dewpoint) + "\" />";
-            wrapper.appendChild(tempInfo);
-        }
-
         var deviceStatus = document.createElement("div");
         deviceStatus.className = "dimmed light xsmall";
-
         var delayTime = this.getDelayTime();
-        deviceStatus.innerHTML = "Updated " + delayTime;
+
+        if (!this.weatherData) {
+            deviceStatus.innerHTML = "Data not loaded yet";
+        } else if (delayTime) {
+            var tempInfo = document.createElement("div");
+            tempInfo.className = "large light";
+            var temperature = document.createElement("span");
+            temperature.className = "bright";
+            temperature.innerHTML = " " + this.getTemperature() + "&deg;";
+            tempInfo.appendChild(temperature);
+            wrapper.appendChild(tempInfo);
+
+            var dewpoint = this.getDewpoint();
+            if (dewpoint) {
+                tempInfo = document.createElement("div");
+                tempInfo.className = "normal medium";
+                tempInfo.innerHTML = "Dew point " + dewpoint + "&deg;" +
+                    " <span class=\"fa fa-fw " +
+                    this.getDewpointStyle(dewpoint) + "\" />";
+                wrapper.appendChild(tempInfo);
+            }
+
+            deviceStatus.innerHTML = "Updated " + delayTime;
+        } else {
+            deviceStatus.innerHTML = "Data out of date";
+        }
+
         if (this.weatherData.battery_low != 0) {
             deviceStatus.innerHTML += "<br/>SENSOR BATTERY LOW";
         }
+        if (this.errorData) {
+            deviceStatus.innerHTML += "<br/>Error: " + this.errorData.error;
+        }
+
         wrapper.appendChild(deviceStatus);
+        return wrapper;
     },
 });
