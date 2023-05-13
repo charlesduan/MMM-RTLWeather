@@ -38,7 +38,12 @@ module.exports = NodeHelper.create({
     },
 
     signalUpdate: function() {
-        if (!this.weatherData) { return; }
+        if (!this.weatherData) {
+            this.weatherData = {
+                time: new Date().toISOString(),
+                error: "Data was empty"
+            };
+        }
         this.sendSocketNotification("RTL_WEATHER_UPDATE", this.weatherData);
     },
 

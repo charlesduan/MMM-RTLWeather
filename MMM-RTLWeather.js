@@ -54,6 +54,7 @@ Module.register("MMM-RTLWeather", {
     },
 
     getDelayTime: function() {
+        if (this.weatherData.time === null) { return "time null"; }
         var then = Date.parse(this.weatherData.time);
         if (isNaN(then)) { return "time unknown"; }
         var delay = Date.now() - then;
